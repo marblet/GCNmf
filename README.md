@@ -1,5 +1,6 @@
 # GCNmf
 This is a PyTorch implementation of "Graph Convolutional Networks for Graphs Containing Missing Features".
+https://arxiv.org/abs/2007.04583
 
 ## Requirements
 - pytorch
