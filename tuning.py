@@ -61,7 +61,14 @@ def objective(trial):
     model = GCNmf(data, args.nhid, dropout, args.ncomp)
 
     # run model
-    trainer = Trainer(data, model, lr, weight_decay, epochs=epochs, niter=20, early_stopping=True, patience=patience)
+    params = {
+        'lr': lr,
+        'weight_decay': weight_decay,
+        'epochs': epochs,
+        'patience': patience,
+        'early_stopping': True
+    }
+    trainer = Trainer(data, model, params, niter=20)
     result = trainer.run()
     return - result['val_acc']
 
@@ -72,17 +79,22 @@ def tune_hyperparams():
     return study.best_params
 
 
-def evaluate_model(params):
+def evaluate_model(hyperparams):
     means = []
-    dropout = params['dropout']
-    lr = params['lr']
-    weight_decay = params['weight_decay']
+    dropout = hyperparams['dropout']
     for mask in tqdm(masks):
         # generate missing data, model and trainer
         data = NodeClsData(args.dataset)
         apply_mask(data.features, mask)  # convert masked number to nan
         model = GCNmf(data, args.nhid, dropout, args.ncomp)
-        trainer = Trainer(data, model, lr, weight_decay, epochs=epochs, niter=20, patience=patience)
+        params = {
+            'lr': hyperparams['lr'],
+            'weight_decay': hyperparams['weight_decay'],
+            'epochs': epochs,
+            'patience': patience,
+            'early_stopping': True
+        }
+        trainer = Trainer(data, model, params, niter=20)
 
         # run the model
         result = trainer.run()
@@ -92,8 +104,8 @@ def evaluate_model(params):
 
 
 def main():
-    params = tune_hyperparams()
-    result = evaluate_model(params)
+    hyperparams = tune_hyperparams()
+    result = evaluate_model(hyperparams)
     print(result)
 
 

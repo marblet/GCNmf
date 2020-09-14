@@ -30,6 +30,12 @@ if __name__ == '__main__':
     mask = generate_mask(data.features, args.rate, args.type)
     apply_mask(data.features, mask)
     model = GCNmf(data, nhid=args.nhid, dropout=args.dropout, n_components=args.ncomp)
-    trainer = Trainer(data, model, lr=args.lr, weight_decay=args.wd,
-                      niter=20, patience=100, epochs=10000, verbose=args.verbose)
+    params = {
+        'lr': args.lr,
+        'weight_decay': args.wd,
+        'epochs': 10000,
+        'patience': 100,
+        'early_stopping': True
+    }
+    trainer = Trainer(data, model, params, niter=20, verbose=args.verbose)
     trainer.run()

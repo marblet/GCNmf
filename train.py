@@ -1,7 +1,8 @@
+from copy import deepcopy
+
 import torch
 import torch.nn.functional as F
 
-from copy import deepcopy
 from numpy import mean, std
 from torch.optim import Adam
 from tqdm import tqdm
@@ -42,20 +43,19 @@ class EarlyStopping:
         return stop
 
 
-class Trainer(object):
-    def __init__(self, data, model, lr, weight_decay, epochs, niter=100,
-                 early_stopping=True, patience=10, verbose=False):
+class Trainer:
+    def __init__(self, data, model, params, niter=100, verbose=False):
         self.data = data
         self.model = model
-        self.optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-        self.lr = lr
-        self.weight_decay = weight_decay
-        self.epochs = epochs
+        self.optimizer = Adam(model.parameters(), lr=params['lr'], weight_decay=params['weight_decay'])
+        self.lr = params['lr']
+        self.weight_decay = params['weight_decay']
+        self.epochs = params['epochs']
         self.niter = niter
         self.verbose = verbose
-        self.early_stopping = early_stopping
-        if early_stopping:
-            self.stop_checker = EarlyStopping(patience, verbose)
+        self.early_stopping = params['early_stopping']
+        if self.early_stopping:
+            self.stop_checker = EarlyStopping(params['patience'], verbose)
 
         self.data.to(device)
 
