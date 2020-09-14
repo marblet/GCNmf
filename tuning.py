@@ -9,46 +9,44 @@ from tqdm import tqdm
 
 from models import GCNmf
 from train import Trainer
-from utils import *
+from utils import NodeClsData, apply_mask, generate_mask
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', default='cora', choices=['cora', 'citeseer', 'amacomp', 'amaphoto'],
+parser.add_argument('--dataset',
+                    default='cora',
+                    choices=['cora', 'citeseer', 'amacomp', 'amaphoto'],
                     help='dataset name')
-parser.add_argument('--type', default='random', choices=['random', 'struct'],
+parser.add_argument('--type',
+                    default='random',
+                    choices=['random', 'struct'],
                     help="randomly missing or structurally missing")
-parser.add_argument('--rate', default=0.1, help='missing rate')
-parser.add_argument('--nhid', default=16, help='the number of hidden units')
-parser.add_argument('--ncomp', default=5, help='the number of Gaussian components')
-parser.add_argument('--seed', default=17)
+parser.add_argument('--rate', default=0.1, type=float, help='missing rate')
+parser.add_argument('--nhid', default=16, type=int, help='the number of hidden units')
+parser.add_argument('--ncomp', default=5, type=int, help='the number of Gaussian components')
+parser.add_argument('--seed', default=17, type=int)
 
 args = parser.parse_args()
-dataset_str = args.dataset
-missing_type = args.type
-missing_rate = float(args.rate)
-nhid = int(args.nhid)
-n_components = int(args.ncomp)
-SEED = int(args.seed)
 TRIAL_SIZE = 100
 TIMEOUT = 60 * 60 * 3
 
 patience, epochs = 100, 10000
 
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed(args.seed)
 torch.backends.cudnn.deterministic = True
 
-print(dataset_str, missing_type, missing_rate)
-print("num of components:", n_components)
-print("nhid:", nhid)
+print(args.dataset, args.type, args.rate)
+print("num of components:", args.ncomp)
+print("nhid:", args.nhid)
 print("patience:", patience)
 print("epochs:", epochs)
 
 # generate all masks for the experiment
-tmpdata = load_data(dataset_str)
-masks = [generate_mask(tmpdata.features, missing_rate, missing_type) for _ in range(5)]
+tmpdata = NodeClsData(args.dataset)
+masks = [generate_mask(tmpdata.features, args.rate, args.type) for _ in range(5)]
 
 
 def objective(trial):
@@ -58,9 +56,9 @@ def objective(trial):
     weight_decay = trial.suggest_loguniform('weight_decay', 1e-6, 1e-1)
 
     # prepare data and model
-    data = load_data(dataset_str)
+    data = NodeClsData(args.dataset)
     apply_mask(data.features, masks[0])
-    model = GCNmf(data, nhid, dropout, n_components)
+    model = GCNmf(data, args.nhid, dropout, args.ncomp)
 
     # run model
     trainer = Trainer(data, model, lr, weight_decay, epochs=epochs, niter=20, early_stopping=True, patience=patience)
@@ -81,9 +79,9 @@ def evaluate_model(params):
     weight_decay = params['weight_decay']
     for mask in tqdm(masks):
         # generate missing data, model and trainer
-        data = load_data(dataset_str)
+        data = NodeClsData(args.dataset)
         apply_mask(data.features, mask)  # convert masked number to nan
-        model = GCNmf(data, nhid, dropout, n_components)
+        model = GCNmf(data, args.nhid, dropout, args.ncomp)
         trainer = Trainer(data, model, lr, weight_decay, epochs=epochs, niter=20, patience=patience)
 
         # run the model
