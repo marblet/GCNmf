@@ -1,7 +1,7 @@
 import argparse
 
 from models import GCNmf
-from train import Trainer
+from train import NodeClsTrainer
 from utils import NodeClsData, apply_mask, generate_mask
 
 
@@ -37,5 +37,5 @@ if __name__ == '__main__':
         'patience': 100,
         'early_stopping': True
     }
-    trainer = Trainer(data, model, params, niter=20, verbose=args.verbose)
+    trainer = NodeClsTrainer(data, model, params, niter=20, verbose=args.verbose)
     trainer.run()

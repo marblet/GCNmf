@@ -82,6 +82,7 @@ class LinkPredData(Data):
         self.neg_val_edges = self.neg_val_edges.to(device)
         self.test_edges = self.test_edges.to(device)
         self.neg_test_edges = self.neg_test_edges.to(device)
+        self.adjmat = self.adjmat.to(device)
 
 
 def load_planetoid_data(dataset_str):
