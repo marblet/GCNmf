@@ -9,7 +9,7 @@ class GCNmf(nn.Module):
         super(GCNmf, self).__init__()
         nfeat, nclass = data.num_features, data.num_classes
         self.gc1 = GCNmfConv(nfeat, nhid, data, n_components, dropout)
-        self.gc2 = GCNConv(nhid, nclass)
+        self.gc2 = GCNConv(nhid, nclass, dropout)
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -19,6 +19,5 @@ class GCNmf(nn.Module):
     def forward(self, data):
         x, adj = data.features, data.adj
         x = self.gc1(x, adj)
-        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.gc2(x, adj)
         return F.log_softmax(x, dim=1)
