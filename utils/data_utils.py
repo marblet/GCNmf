@@ -53,11 +53,13 @@ class LinkPredData(Data):
         super(LinkPredData, self).__init__(dataset_str)
         np.random.seed(seed)
         train_edges, val_edges, test_edges = split_edges(self.G, val_ratio, test_ratio)
-        negative_edges = torch.stack(torch.where(self.adjmat == 0))
+        adjmat = torch.tensor(nx.to_numpy_matrix(self.G) + np.eye(self.features.size(0))).float()
+        negative_edges = torch.stack(torch.where(adjmat == 0))
 
         # Update edge_list and adj to train edge_list, adj, and adjmat
         edge_list = torch.cat([train_edges, torch.stack([train_edges[1], train_edges[0]])], dim=1)
-        self.edge_list = add_self_loops(edge_list, self.G.number_of_nodes)
+        self.num_nodes = self.G.number_of_nodes()
+        self.edge_list = add_self_loops(edge_list, self.num_nodes)
         self.adj = normalize_adj(self.edge_list)
         self.adjmat = torch.where(self.adj.to_dense() > 0, torch.tensor(1.), torch.tensor(0.))
 
