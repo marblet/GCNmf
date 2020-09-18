@@ -56,20 +56,21 @@ class GCNmfConv(nn.Module):
         self.means.data = torch.FloatTensor(self.gmm.means_).to(device)
         self.logvars.data = torch.FloatTensor(np.log(self.gmm.covariances_)).to(device)
 
-    def calc_responsibility(self, mean_mat, vars):
-        D = self.in_features
-        logN = (- 1 / 2) * torch.sum(torch.pow(mean_mat - self.means.unsqueeze(1), 2) / vars.unsqueeze(1), 2)\
-            - (D / 2) * np.log(2 * np.pi) - (1 / 2) * torch.sum(self.logvars)
-        logProb = self.logp.unsqueeze(1) + logN
-        return torch.softmax(logProb, dim=0)
+    def calc_responsibility(self, mean_mat, variances):
+        dim = self.in_features
+        log_n = (- 1 / 2) *\
+            torch.sum(torch.pow(mean_mat - self.means.unsqueeze(1), 2) / variances.unsqueeze(1), 2)\
+            - (dim / 2) * np.log(2 * np.pi) - (1 / 2) * torch.sum(self.logvars)
+        log_prob = self.logp.unsqueeze(1) + log_n
+        return torch.softmax(log_prob, dim=0)
 
     def forward(self, x, adj):
         x_imp = x.repeat(self.n_components, 1, 1)
         x_isnan = torch.isnan(x_imp)
-        vars = torch.exp(self.logvars)
+        variances = torch.exp(self.logvars)
         mean_mat = torch.where(x_isnan, self.means.repeat((x.size(0), 1, 1)).permute(1, 0, 2), x_imp)
         var_mat = torch.where(x_isnan,
-                              vars.repeat((x.size(0), 1, 1)).permute(1, 0, 2),
+                              variances.repeat((x.size(0), 1, 1)).permute(1, 0, 2),
                               torch.zeros(size=x_imp.size(), device=device, requires_grad=True))
 
         # dropout
@@ -92,6 +93,6 @@ class GCNmfConv(nn.Module):
         expected_x = ex_relu(transform_x, transform_covs)
 
         # calculate responsibility
-        gamma = self.calc_responsibility(mean_mat, vars)
+        gamma = self.calc_responsibility(mean_mat, variances)
         expected_x = torch.sum(expected_x * gamma.unsqueeze(2), dim=0)
         return expected_x
