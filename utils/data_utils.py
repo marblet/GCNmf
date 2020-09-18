@@ -1,8 +1,9 @@
+import pickle as pkl
+import sys
+
 import networkx as nx
 import numpy as np
-import pickle as pkl
 import scipy.sparse as sp
-import sys
 import torch
 
 
@@ -18,6 +19,7 @@ class Data:
         self.edge_list = data['edge_list']
         self.features = data['features']
         self.labels = data['labels']
+        self.G = data['G']
         self.num_features = self.features.size(1)
 
     def to(self, device):
@@ -46,8 +48,42 @@ class NodeClsData(Data):
         self.test_mask = self.test_mask.to(device)
 
 
+class LinkPredData(Data):
+    def __init__(self, dataset_str, val_ratio=0.05, test_ratio=0.1, seed=None):
+        super(LinkPredData, self).__init__(dataset_str)
+        np.random.seed(seed)
+        train_edges, val_edges, test_edges = split_edges(self.G, val_ratio, test_ratio)
+        negative_edges = torch.stack(torch.where(self.adjmat == 0))
+
+        # Update edge_list and adj to train edge_list, adj, and adjmat
+        edge_list = torch.cat([train_edges, torch.stack([train_edges[1], train_edges[0]])], dim=1)
+        self.edge_list = add_self_loops(edge_list, self.G.number_of_nodes)
+        self.adj = normalize_adj(self.edge_list)
+        self.adjmat = torch.where(self.adj.to_dense() > 0, torch.tensor(1.), torch.tensor(0.))
+
+        neg_idx = np.random.choice(negative_edges.size(1), val_edges.size(1) + test_edges.size(1))
+
+        self.val_edges = val_edges
+        self.neg_val_edges = negative_edges[:, neg_idx[:val_edges.size(1)]]
+        self.test_edges = test_edges
+        self.neg_test_edges = negative_edges[:, neg_idx[val_edges.size(1):]]
+
+        # For Link Prediction Training
+        N = self.features.size(0)
+        E = self.edge_list.size(1)
+        self.pos_weight = torch.tensor((N * N - E) / E)
+        self.norm = (N * N) / ((N * N - E) * 2)
+
+    def to(self, device):
+        super().to(device)
+        self.val_edges = self.val_edges.to(device)
+        self.neg_val_edges = self.neg_val_edges.to(device)
+        self.test_edges = self.test_edges.to(device)
+        self.neg_test_edges = self.neg_test_edges.to(device)
+
+
 def load_planetoid_data(dataset_str):
-    names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
+    names = ['tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for name in names:
         with open("data/planetoid/ind.{}.{}".format(dataset_str, name), 'rb') as f:
@@ -62,7 +98,7 @@ def load_planetoid_data(dataset_str):
                 out = out.todense() if hasattr(out, 'todense') else out
                 objects.append(torch.tensor(out))
 
-    x, y, tx, ty, allx, ally, graph = tuple(objects)
+    tx, ty, allx, ally, graph = tuple(objects)
     test_idx = parse_index_file("data/planetoid/ind.{}.test.index".format(dataset_str))
     sorted_test_idx = np.sort(test_idx)
 
@@ -81,6 +117,7 @@ def load_planetoid_data(dataset_str):
     labels = torch.cat([ally, ty], dim=0).max(dim=1)[1]
     labels[test_idx] = labels[sorted_test_idx]
 
+    G = nx.from_dict_of_lists(graph)
     edge_list = adj_list_from_dict(graph)
     edge_list = add_self_loops(edge_list, features.size(0))
     adj = normalize_adj(edge_list)
@@ -89,7 +126,8 @@ def load_planetoid_data(dataset_str):
         'adj': adj,
         'edge_list': edge_list,
         'features': features,
-        'labels': labels
+        'labels': labels,
+        'G': G,
     }
     return data
 
@@ -121,7 +159,8 @@ def load_amazon_data(dataset_str):
         'adj': adj,
         'edge_list': edge_list,
         'features': features,
-        'labels': labels
+        'labels': labels,
+        'G': G,
     }
     return data
 
@@ -145,6 +184,18 @@ def split_amazon_data(dataset_str, labels):
     val_mask = index_to_mask(val_idx, labels.size(0))
     test_mask = index_to_mask(test_idx, labels.size(0))
     return train_mask, val_mask, test_mask
+
+
+def split_edges(G, val_ratio, test_ratio):
+    edges = np.array([[u, v] for u, v in G.edges()])
+    np.random.shuffle(edges)
+    E = edges.shape[0]
+    n_val_edges = int(E * val_ratio)
+    n_test_edges = int(E * test_ratio)
+    val_edges = torch.LongTensor(edges[:n_val_edges]).t()
+    test_edges = torch.LongTensor(edges[n_val_edges: n_val_edges + n_test_edges]).t()
+    train_edges = torch.LongTensor(edges[n_val_edges + n_test_edges:]).t()
+    return train_edges, val_edges, test_edges
 
 
 def adj_list_from_dict(graph):
@@ -175,7 +226,7 @@ def add_self_loops(edge_list, size):
 
 
 def get_degree(edge_list):
-    row, col = edge_list
+    row = edge_list[0]
     deg = torch.bincount(row)
     return deg
 
