@@ -1,14 +1,15 @@
 import argparse
+import random
+
 import numpy as np
 import optuna
-import random
 import torch
 
 from numpy import mean
 from tqdm import tqdm
 
 from models import GCNmf
-from train import Trainer
+from train import NodeClsTrainer
 from utils import NodeClsData, apply_mask, generate_mask
 
 
@@ -68,7 +69,7 @@ def objective(trial):
         'patience': patience,
         'early_stopping': True
     }
-    trainer = Trainer(data, model, params, niter=20)
+    trainer = NodeClsTrainer(data, model, params, niter=20)
     result = trainer.run()
     return - result['val_acc']
 
@@ -94,7 +95,7 @@ def evaluate_model(hyperparams):
             'patience': patience,
             'early_stopping': True
         }
-        trainer = Trainer(data, model, params, niter=20)
+        trainer = NodeClsTrainer(data, model, params, niter=20)
 
         # run the model
         result = trainer.run()
@@ -104,8 +105,8 @@ def evaluate_model(hyperparams):
 
 
 def main():
-    hyperparams = tune_hyperparams()
-    result = evaluate_model(hyperparams)
+    hyper_params = tune_hyperparams()
+    result = evaluate_model(hyper_params)
     print(result)
 
 

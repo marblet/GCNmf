@@ -21,7 +21,6 @@ parser.add_argument('--ncomp', default=5, type=int, help='the number of Gaussian
 parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
 parser.add_argument('--wd', default=1e-2, type=float, help='weight decay')
 parser.add_argument('--verbose', action='store_true', help='verbose')
-parser.add_argument('--seed', default=17, type=int)
 
 args = parser.parse_args()
 
