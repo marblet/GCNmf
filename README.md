@@ -10,15 +10,15 @@ https://arxiv.org/abs/2007.04583
 - tqdm
 
 ## Run codes
-To run GCNmf, you can use main.py with some options to specify dataset, missing type, missing rate, hyper-parameters:
+To run GCNmf, you can use run_gcnmf.py with some options to specify dataset, missing type, missing rate, hyper-parameters:
 ```
-$ python main.py --dataset citeseer --type struct --rate 0.1 --verbose
+$ python run_gcnmf.py --dataset citeseer --type struct --rate 0.1 --verbose
 ```
 The following command shows the arguments of main.py:
 ```
-$ python main.py --help
+$ python run_gcnmf.py --help
 ```
 You can optimize hyperparameters (dropout, learning rate, weight_decay) using tuning.py:
 ```
-$ python tuning.py --dataset cora --type struct --rate 0.1
+$ python tune_gcnmf.py --dataset cora --type struct --rate 0.1
 ```
