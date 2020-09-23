@@ -25,13 +25,13 @@ parser.add_argument('--type',
 parser.add_argument('--rate', default=0.1, type=float, help='missing rate')
 parser.add_argument('--nhid', default=16, type=int, help='the number of hidden units')
 parser.add_argument('--ncomp', default=5, type=int, help='the number of Gaussian components')
+parser.add_argument('--epoch', default=10000, type=int, help='the number of training epoch')
+parser.add_argument('--patience', default=100, type=int, help='patience for early stopping')
 parser.add_argument('--seed', default=17, type=int)
 
 args = parser.parse_args()
 TRIAL_SIZE = 100
 TIMEOUT = 60 * 60 * 3
-
-patience, epochs = 100, 10000
 
 random.seed(args.seed)
 np.random.seed(args.seed)
@@ -42,8 +42,8 @@ torch.backends.cudnn.deterministic = True
 print(args.dataset, args.type, args.rate)
 print("num of components:", args.ncomp)
 print("nhid:", args.nhid)
-print("patience:", patience)
-print("epochs:", epochs)
+print("epochs:", args.epoch)
+print("patience:", args.patience)
 
 # generate all masks for the experiment
 tmpdata = NodeClsData(args.dataset)
@@ -65,11 +65,11 @@ def objective(trial):
     params = {
         'lr': lr,
         'weight_decay': weight_decay,
-        'epochs': epochs,
-        'patience': patience,
+        'epochs': args.epoch,
+        'patience': args.patience,
         'early_stopping': True
     }
-    trainer = NodeClsTrainer(data, model, params, niter=20)
+    trainer = NodeClsTrainer(data, model, params, niter=10)
     result = trainer.run()
     return - result['val_acc']
 
@@ -91,8 +91,8 @@ def evaluate_model(hyperparams):
         params = {
             'lr': hyperparams['lr'],
             'weight_decay': hyperparams['weight_decay'],
-            'epochs': epochs,
-            'patience': patience,
+            'epochs': args.epoch,
+            'patience': args.patience,
             'early_stopping': True
         }
         trainer = NodeClsTrainer(data, model, params, niter=20)

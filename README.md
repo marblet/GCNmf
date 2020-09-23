@@ -18,7 +18,7 @@ The following command shows the arguments of main.py:
 ```
 $ python run_gcnmf.py --help
 ```
-You can optimize hyperparameters (dropout, learning rate, weight_decay) using tuning.py:
+You can optimize hyperparameters (dropout, learning rate, weight_decay) using tune_gcnmf.py:
 ```
 $ python tune_gcnmf.py --dataset cora --type struct --rate 0.1
 ```

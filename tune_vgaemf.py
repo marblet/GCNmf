@@ -16,7 +16,7 @@ from utils import LinkPredData, apply_mask, generate_mask
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset',
                     default='cora',
-                    choices=['cora', 'citeseer', 'amacomp', 'amaphoto'],
+                    choices=['cora', 'citeseer'],
                     help='dataset name')
 parser.add_argument('--type',
                     default='random',

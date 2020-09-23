@@ -20,6 +20,8 @@ parser.add_argument('--dropout', default=0.5, type=float, help='dropout rate')
 parser.add_argument('--ncomp', default=5, type=int, help='the number of Gaussian components')
 parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
 parser.add_argument('--wd', default=1e-2, type=float, help='weight decay')
+parser.add_argument('--epoch', default=10000, type=int, help='the number of training epoch')
+parser.add_argument('--patience', default=100, type=int, help='patience for early stopping')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 
 args = parser.parse_args()
@@ -32,8 +34,8 @@ if __name__ == '__main__':
     params = {
         'lr': args.lr,
         'weight_decay': args.wd,
-        'epochs': 10000,
-        'patience': 100,
+        'epochs': args.epoch,
+        'patience': args.patience,
         'early_stopping': True
     }
     trainer = NodeClsTrainer(data, model, params, niter=20, verbose=args.verbose)
