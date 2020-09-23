@@ -56,9 +56,9 @@ def objective(trial):
     weight_decay = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # prepare data and model
-    data = LinkPredData(args.dataset)
+    data = LinkPredData(args.dataset, seed=args.seed)
     apply_mask(data.features, masks[0])
-    model = VGAEmf(data, args.nhid, dropout, args.ncomp)
+    model = VGAEmf(data, args.nhid, args.latent_dim, dropout, args.ncomp)
 
     # run model
     params = {
@@ -81,9 +81,9 @@ def evaluate_model(hyperparams):
     means = []
     for mask in tqdm(masks):
         # generate missing data, model and trainer
-        data = LinkPredData(args.dataset)
+        data = LinkPredData(args.dataset, seed=args.seed)
         apply_mask(data.features, mask)  # convert masked number to nan
-        model = VGAEmf(data, args.nhid, hyperparams['dropout'], args.ncomp)
+        model = VGAEmf(data, args.nhid, args.latent_dim, hyperparams['dropout'], args.ncomp)
         params = {
             'lr': hyperparams['lr'],
             'weight_decay': hyperparams['weight_decay'],
