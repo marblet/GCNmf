@@ -14,14 +14,16 @@ def generate_mask(features, missing_rate, missing_type):
     -------
 
     """
-    if missing_type == 'random':
-        return generate_random_mask(features, missing_rate)
+    if missing_type == 'uniform':
+        return generate_uniform_mask(features, missing_rate)
+    if missing_type == 'bias':
+        return generate_bias_mask(features, missing_rate)
     if missing_type == 'struct':
         return generate_struct_mask(features, missing_rate)
     raise ValueError("Missing type {0} is not defined".format(missing_type))
 
 
-def generate_random_mask(features, missing_rate):
+def generate_uniform_mask(features, missing_rate):
     """
 
     Parameters
@@ -37,6 +39,27 @@ def generate_random_mask(features, missing_rate):
     """
     mask = torch.rand(size=features.size())
     mask = mask <= missing_rate
+    return mask
+
+
+def generate_bias_mask(features, ratio, high=0.9, low=0.1):
+    """
+    Parameters
+    ----------
+    features: torch.Tensor
+    ratio: float
+    high: float
+    low: float
+
+    Returns
+    -------
+    mask: torch.Tensor
+    """
+    node_ratio = (ratio - low) / (high - low)
+    feat_mask = torch.rand(size=(1, features.size(1)))
+    high, low = torch.tensor(high), torch.tensor(low)
+    feat_threshold = torch.where(feat_mask < node_ratio, high, low)
+    mask = torch.rand_like(features) < feat_threshold
     return mask
 
 

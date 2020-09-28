@@ -19,9 +19,9 @@ parser.add_argument('--dataset',
                     choices=['cora', 'citeseer'],
                     help='dataset name')
 parser.add_argument('--type',
-                    default='random',
-                    choices=['random', 'struct'],
-                    help="randomly missing or structurally missing")
+                    default='uniform',
+                    choices=['uniform', 'bias', 'struct'],
+                    help="uniform randomly missing, biased randomly missing, and structurally missing")
 parser.add_argument('--rate', default=0.1, type=float, help='missing rate')
 parser.add_argument('--nhid', default=32, type=int, help='the number of hidden units')
 parser.add_argument('--latent_dim', default=16, type=int, help='the dimension of latent variables')
