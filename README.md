@@ -1,6 +1,5 @@
 # GCNmf
-This is a PyTorch implementation of "Graph Convolutional Networks for Graphs Containing Missing Features".
-https://arxiv.org/abs/2007.04583
+This is a PyTorch implementation of "[Graph Convolutional Networks for Graphs Containing Missing Features](https://doi.org/10.1016/j.future.2020.11.016)", *Future Generation Computer Systems*, 2021.
 
 ## Requirements
 - pytorch
@@ -34,4 +33,16 @@ $ python run_link_pred.py --dataset cora --type bias --rate 0.5 --verbose
 You can optimize hyper-parameters (dropout, learning rate, weight_decay) using tune_link_pred.py:
 ```
 $ python tune_link_pred.py --dataset citeseer --type struct --rate 0.1
+```
+
+### Cite
+```
+@article{taguchi2021gcnmf,
+  title = "Graph convolutional networks for graphs containing missing features",
+  journal = "Future Generation Computer Systems",
+  volume = "117",
+  pages = "155 - 168",
+  year = "2021",
+  author = "Hibiki Taguchi and Xin Liu and Tsuyoshi Murata",
+}
 ```
