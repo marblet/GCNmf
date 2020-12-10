@@ -23,6 +23,14 @@ class Data:
         self.num_features = self.features.size(1)
 
     def to(self, device):
+        """
+
+        Parameters
+        ----------
+        device: string
+            cpu or cuda
+
+        """
         self.adj = self.adj.to(device)
         self.edge_list = self.edge_list.to(device)
         self.features = self.features.to(device)
@@ -33,15 +41,23 @@ class NodeClsData(Data):
     def __init__(self, dataset_str):
         super(NodeClsData, self).__init__(dataset_str)
         if dataset_str in ['cora', 'citeseer']:
-            train_mask, val_mask, test_mask = split_planetoid_data(dataset_str, self.labels)
+            train_mask, val_mask, test_mask = split_planetoid_data(dataset_str, self.labels.size(0))
         else:  # in ['amaphoto', 'amacomp']
-            train_mask, val_mask, test_mask = split_amazon_data(dataset_str, self.labels)
+            train_mask, val_mask, test_mask = split_amazon_data(dataset_str, self.labels.size(0))
         self.train_mask = train_mask
         self.val_mask = val_mask
         self.test_mask = test_mask
         self.num_classes = int(torch.max(self.labels)) + 1
 
     def to(self, device):
+        """
+
+        Parameters
+        ----------
+        device: string
+            cpu or cuda
+
+        """
         super().to(device)
         self.train_mask = self.train_mask.to(device)
         self.val_mask = self.val_mask.to(device)
@@ -63,7 +79,7 @@ class LinkPredData(Data):
         self.adj = normalize_adj(self.edge_list)
         self.adjmat = torch.where(self.adj.to_dense() > 0, torch.tensor(1.), torch.tensor(0.))
 
-        neg_idx = np.random.choice(negative_edges.size(1), val_edges.size(1) + test_edges.size(1))
+        neg_idx = np.random.choice(negative_edges.size(1), val_edges.size(1) + test_edges.size(1), replace=False)
 
         self.val_edges = val_edges
         self.neg_val_edges = negative_edges[:, neg_idx[:val_edges.size(1)]]
@@ -77,6 +93,14 @@ class LinkPredData(Data):
         self.norm = (N * N) / ((N * N - E) * 2)
 
     def to(self, device):
+        """
+
+        Parameters
+        ----------
+        device: string
+            cpu or cuda
+
+        """
         super().to(device)
         self.val_edges = self.val_edges.to(device)
         self.neg_val_edges = self.neg_val_edges.to(device)
@@ -86,6 +110,18 @@ class LinkPredData(Data):
 
 
 def load_planetoid_data(dataset_str):
+    """
+
+    Parameters
+    ----------
+    dataset_str: string
+        the name of dataset (cora, citeseer)
+
+    Returns
+    -------
+    data: dict
+
+    """
     names = ['tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for name in names:
@@ -136,6 +172,18 @@ def load_planetoid_data(dataset_str):
 
 
 def load_amazon_data(dataset_str):
+    """
+
+    Parameters
+    ----------
+    dataset_str: string
+        the name of dataset (amaphoto, amacomp)
+
+    Returns
+    -------
+    data: dict
+
+    """
     with np.load('data/amazon/' + dataset_str + '.npz', allow_pickle=True) as loader:
         loader = dict(loader)
 
@@ -168,24 +216,40 @@ def load_amazon_data(dataset_str):
     return data
 
 
-def split_planetoid_data(dataset_str, labels):
+def split_planetoid_data(dataset_str, num_nodes):
+    """
+
+    Parameters
+    ----------
+    dataset_str: string
+        the name of dataset (cora, citeseer)
+    num_nodes: int
+        the number of nodes
+
+    Returns
+    -------
+    train_mask: torch.tensor
+    val_mask: torch.tensor
+    test_mask: torch.tensor
+
+    """
     with open("data/planetoid/ind.{}.y".format(dataset_str), 'rb') as f:
         y = torch.tensor(pkl.load(f, encoding='latin1'))
     test_idx = parse_index_file("data/planetoid/ind.{}.test.index".format(dataset_str))
     train_idx = torch.arange(y.size(0), dtype=torch.long)
     val_idx = torch.arange(y.size(0), y.size(0) + 500, dtype=torch.long)
-    train_mask = index_to_mask(train_idx, labels.shape[0])
-    val_mask = index_to_mask(val_idx, labels.shape[0])
-    test_mask = index_to_mask(test_idx, labels.shape[0])
+    train_mask = index_to_mask(train_idx, num_nodes)
+    val_mask = index_to_mask(val_idx, num_nodes)
+    test_mask = index_to_mask(test_idx, num_nodes)
     return train_mask, val_mask, test_mask
 
 
-def split_amazon_data(dataset_str, labels):
+def split_amazon_data(dataset_str, num_nodes):
     with np.load('data/amazon/' + dataset_str + '_mask.npz', allow_pickle=True) as masks:
         train_idx, val_idx, test_idx = masks['train_idx'], masks['val_idx'], masks['test_idx']
-    train_mask = index_to_mask(train_idx, labels.size(0))
-    val_mask = index_to_mask(val_idx, labels.size(0))
-    test_mask = index_to_mask(test_idx, labels.size(0))
+    train_mask = index_to_mask(train_idx, num_nodes)
+    val_mask = index_to_mask(val_idx, num_nodes)
+    test_mask = index_to_mask(test_idx, num_nodes)
     return train_mask, val_mask, test_mask
 
 

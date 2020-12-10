@@ -44,6 +44,7 @@ def generate_uniform_mask(features, missing_rate):
 
 def generate_bias_mask(features, ratio, high=0.9, low=0.1):
     """
+
     Parameters
     ----------
     features: torch.Tensor
@@ -53,7 +54,9 @@ def generate_bias_mask(features, ratio, high=0.9, low=0.1):
 
     Returns
     -------
-    mask: torch.Tensor
+    mask : torch.tensor
+        mask[i][j] is True if features[i][j] is missing.
+
     """
     node_ratio = (ratio - low) / (high - low)
     feat_mask = torch.rand(size=(1, features.size(1)))
