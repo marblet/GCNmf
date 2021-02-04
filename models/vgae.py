@@ -1,3 +1,8 @@
+"""
+version 1.0
+date 2021/02/04
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
