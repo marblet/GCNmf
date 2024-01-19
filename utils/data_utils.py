@@ -10,14 +10,12 @@ import networkx as nx
 import numpy as np
 import scipy.sparse as sp
 import torch
+from torch_geometric.data import Data, Dataset,InMemoryDataset
 
-
-class Data:
+class DataAMB:
     def __init__(self, dataset_str):
-        if dataset_str in ['cora', 'citeseer']:
-            data = load_planetoid_data(dataset_str)
-        elif dataset_str in ['amaphoto', 'amacomp']:
-            data = load_amazon_data(dataset_str)
+        if 'abm' in dataset_str:
+            data = load_abm_data_temp(dataset_str)
         else:
             raise ValueError("Dataset {0} does not exist".format(dataset_str))
         self.adj = data['adj']
@@ -41,18 +39,49 @@ class Data:
         self.features = self.features.to(device)
         self.labels = self.labels.to(device)
 
+class ABMInMemoryDataset(InMemoryDataset):
+    def __init__(self, root):
+        super(ABMInMemoryDataset, self).__init__(root)
+        self.load(self.processed_paths[0])
+        # self.num_obs_features = self._get_num_obs_features()
 
-class NodeClsData(Data):
+    @property
+    def raw_file_names(self):
+        # Define the raw data file names (if any)
+        return []
+
+    @property
+    def processed_file_names(self):
+        return ['data.pt']
+
+    # def _get_num_obs_features(self):
+    #     r"""Returns the number of features per observation in the dataset."""
+    #     data = self[0]
+    #     # Do not fill cache for `InMemoryDataset`:
+    #     if hasattr(self, '_data_list') and self._data_list is not None:
+    #         self._data_list[0] = None
+    #     data = data[0] if isinstance(data, tuple) else data
+    #     if data:
+    #         return data.obs.shape[-1]
+    #     raise AttributeError(f"'{data.__class__.__name__}' object has no "
+    #                          f"attribute 'num_obs_features'")
+    
+    def download(self):
+        # Implement the code to download the raw data (if needed)
+        pass
+
+    def process(self):
+        self.load(self.processed_paths[0])
+
+
+class NodeClsData(ABMInMemoryDataset):
     def __init__(self, dataset_str):
         super(NodeClsData, self).__init__(dataset_str)
-        if dataset_str in ['cora', 'citeseer']:
-            train_mask, val_mask, test_mask = split_planetoid_data(dataset_str, self.labels.size(0))
-        else:  # in ['amaphoto', 'amacomp']
-            train_mask, val_mask, test_mask = split_amazon_data(dataset_str, self.labels.size(0))
-        self.train_mask = train_mask
-        self.val_mask = val_mask
-        self.test_mask = test_mask
-        self.num_classes = int(torch.max(self.labels)) + 1
+        train_data, val_data, test_data = load_abm_data_temp(dataset_str)
+        
+        self.train_data = train_data
+        self.val_data = val_data
+        self.test_data = test_data
 
     def to(self, device):
         """
@@ -67,6 +96,15 @@ class NodeClsData(Data):
         self.train_mask = self.train_mask.to(device)
         self.val_mask = self.val_mask.to(device)
         self.test_mask = self.test_mask.to(device)
+
+
+def load_abm_data_temp(dataset_str):
+    all_data = []
+    for data_name in ['train_dataset.pt', 'val_dataset.pt', 'test_dataset.pt']:
+        data_obj = torch.load(dataset_str + '/'  + data_name)
+        all_data.append(data_obj)
+    
+    return all_data[0], all_data[1], all_data[2]
 
 
 class LinkPredData(Data):
@@ -113,6 +151,35 @@ class LinkPredData(Data):
         self.neg_test_edges = self.neg_test_edges.to(device)
         self.adjmat = self.adjmat.to(device)
 
+
+# def load_abm_data(dataset_str):
+#     all_data = []
+#     for data_name in ['train_dataset.pt', 'val_dataset.pt', 'test_dataset.pt']:
+#         data_obj = torch.load(dataset_str + '/'  + data_name)
+#         data_list = data_obj.data_list
+    
+#         single_dataset = []
+#         for graph in data_list:
+#             G = nx.Graph()
+            
+#             data = {
+#                 'adj': adj,
+#                 'edge_list': graph.edge_index,
+#                 'edge_features': graph.edge_attr,
+#                 'features': graph.x,
+#                 'labels': graph.y,
+#                 'dim_features': data_obj.dim_node_features,
+#                 'dim_edge_features': data_obj.dim_edge_features,
+#                 'num_classes': data_obj.num_labels,
+#                 'G': G,
+#             }
+            
+#             single_dataset.append(data)
+    
+#         all_data.append(single_dataset)
+    
+#     return data
+    
 
 def load_planetoid_data(dataset_str):
     """
@@ -174,7 +241,6 @@ def load_planetoid_data(dataset_str):
         'G': G,
     }
     return data
-
 
 def load_amazon_data(dataset_str):
     """

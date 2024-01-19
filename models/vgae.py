@@ -7,7 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import GCNConv
+# from . import GCNConv
+from torch_geometric.nn.conv import GCNConv
 
 
 def reparameterize(mu, logvar, training):

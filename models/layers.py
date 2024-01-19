@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from sklearn.impute import SimpleImputer
 from sklearn.mixture import GaussianMixture
 from torch.nn.parameter import Parameter
+from torch_sparse import SparseTensor
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -40,12 +41,16 @@ class GCNmfConv(nn.Module):
         self.out_features = out_features
         self.n_components = n_components
         self.dropout = dropout
-        self.features = data.features.numpy()
+        self.features = data.x.numpy()
         self.logp = Parameter(torch.FloatTensor(n_components))
         self.means = Parameter(torch.FloatTensor(n_components, in_features))
         self.logvars = Parameter(torch.FloatTensor(n_components, in_features))
         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
-        self.adj2 = torch.mul(data.adj, data.adj).to(device)
+        #TODO: Add this part into forward pass.
+        # edge_index = data.edge_index
+        # adj = SparseTensor(row=edge_index[0], col=edge_index[1], sparse_sizes=(self.features.shape[0], self.features.shape[0]))
+        # adj = adj.to_dense()
+        # self.adj2 = torch.mul(adj, adj).to(device)
         self.gmm = None
         if bias:
             self.bias = Parameter(torch.FloatTensor(out_features))
@@ -70,6 +75,7 @@ class GCNmfConv(nn.Module):
         return torch.softmax(log_prob, dim=0)
 
     def forward(self, x, adj):
+        adj2 = torch.mul(adj, adj)
         x_imp = x.repeat(self.n_components, 1, 1)
         x_isnan = torch.isnan(x_imp)
         variances = torch.exp(self.logvars)
@@ -92,7 +98,7 @@ class GCNmfConv(nn.Module):
         for component_x in transform_x:
             conv_x.append(torch.spmm(adj, component_x))
         for component_covs in transform_covs:
-            conv_covs.append(torch.spmm(self.adj2, component_covs))
+            conv_covs.append(torch.spmm(adj2, component_covs))
         transform_x = torch.stack(conv_x, dim=0)
         transform_covs = torch.stack(conv_covs, dim=0)
         expected_x = ex_relu(transform_x, transform_covs)

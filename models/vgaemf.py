@@ -6,7 +6,7 @@ date 2021/02/04
 import torch.nn as nn
 
 from . import GCNmfConv
-from . import GCNConv
+from torch_geometric.nn.conv import GCNConv
 from . import Decoder, reparameterize
 
 
