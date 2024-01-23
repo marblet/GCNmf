@@ -17,12 +17,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def ex_relu(mu, sigma):
-    is_zero = (sigma == 0)
+    is_zero = sigma == 0
     sigma[is_zero] = 1e-10
     sqrt_sigma = torch.sqrt(sigma)
     w = torch.div(mu, sqrt_sigma)
-    nr_values = sqrt_sigma * (torch.div(torch.exp(torch.div(- w * w, 2)), np.sqrt(2 * np.pi)) +
-                              torch.div(w, 2) * (1 + torch.erf(torch.div(w, np.sqrt(2)))))
+    nr_values = sqrt_sigma * (
+        torch.div(torch.exp(torch.div(-w * w, 2)), np.sqrt(2 * np.pi))
+        + torch.div(w, 2) * (1 + torch.erf(torch.div(w, np.sqrt(2))))
+    )
     nr_values = torch.where(is_zero, F.relu(mu), nr_values)
     return nr_values
 
@@ -46,7 +48,6 @@ class GCNmfConv(nn.Module):
         self.means = Parameter(torch.FloatTensor(n_components, in_features))
         self.logvars = Parameter(torch.FloatTensor(n_components, in_features))
         self.weight = Parameter(torch.FloatTensor(in_features, out_features))
-        #TODO: Add this part into forward pass.
         # edge_index = data.edge_index
         # adj = SparseTensor(row=edge_index[0], col=edge_index[1], sparse_sizes=(self.features.shape[0], self.features.shape[0]))
         # adj = adj.to_dense()
@@ -65,6 +66,15 @@ class GCNmfConv(nn.Module):
         self.logp.data = torch.FloatTensor(np.log(self.gmm.weights_)).to(device)
         self.means.data = torch.FloatTensor(self.gmm.means_).to(device)
         self.logvars.data = torch.FloatTensor(np.log(self.gmm.covariances_)).to(device)
+    
+    # For unit testing
+    def test_reset_parameters(self):
+        nn.init.xavier_uniform_(self.weight.data, gain=1.414)
+        nn.init.normal_(self.logp.data)
+        nn.init.xavier_uniform_(self.means.data, gain=1.414)
+        nn.init.xavier_uniform_(self.logvars.data, gain=1.414)
+        if self.bias is not None:
+            self.bias.data.fill_(0)
 
     def calc_responsibility(self, mean_mat, variances):
         dim = self.in_features
@@ -83,7 +93,6 @@ class GCNmfConv(nn.Module):
         var_mat = torch.where(x_isnan,
                               variances.repeat((x.size(0), 1, 1)).permute(1, 0, 2),
                               torch.zeros(size=x_imp.size(), device=device, requires_grad=True))
-
         # dropout
         dropmat = F.dropout(torch.ones_like(mean_mat), self.dropout, training=self.training)
         mean_mat = mean_mat * dropmat
@@ -101,6 +110,7 @@ class GCNmfConv(nn.Module):
             conv_covs.append(torch.spmm(adj2, component_covs))
         transform_x = torch.stack(conv_x, dim=0)
         transform_covs = torch.stack(conv_covs, dim=0)
+
         expected_x = ex_relu(transform_x, transform_covs)
 
         # calculate responsibility

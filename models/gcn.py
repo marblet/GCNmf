@@ -66,16 +66,16 @@ class GCN(nn.Module):
                 nn.init.xavier_uniform_(layer.weight, gain=1.414)
                 layer.bias.data.fill_(0)
 
-    # def forward(self, data):
-    #     x, edge_index, batch = data.x, data.edge_index, data.batch
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
         
-    #     x = self.gcn(x, edge_index)
+        x = self.gcn(x, edge_index)
         
-    #     x = global_add_pool(x, batch)
+        x = global_add_pool(x, batch)
         
-    #     logits = self.backbone_fc(x)
+        logits = self.backbone_fc(x)
 
-    #     return F.sigmoid(logits)
+        return F.sigmoid(logits)
     
     def forward(self, data):
         x, edge_index, batch, obs = data.x, data.edge_index, data.batch, torch.tensor(np.array(data.obs), dtype=torch.float32)

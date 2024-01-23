@@ -12,33 +12,6 @@ import scipy.sparse as sp
 import torch
 from torch_geometric.data import Data, Dataset,InMemoryDataset
 
-class DataAMB:
-    def __init__(self, dataset_str):
-        if 'abm' in dataset_str:
-            data = load_abm_data_temp(dataset_str)
-        else:
-            raise ValueError("Dataset {0} does not exist".format(dataset_str))
-        self.adj = data['adj']
-        self.edge_list = data['edge_list']
-        self.features = data['features']
-        self.labels = data['labels']
-        self.G = data['G']
-        self.num_features = self.features.size(1)
-
-    def to(self, device):
-        """
-
-        Parameters
-        ----------
-        device: string
-            cpu or cuda
-
-        """
-        self.adj = self.adj.to(device)
-        self.edge_list = self.edge_list.to(device)
-        self.features = self.features.to(device)
-        self.labels = self.labels.to(device)
-
 class ABMInMemoryDataset(InMemoryDataset):
     def __init__(self, root):
         super(ABMInMemoryDataset, self).__init__(root)

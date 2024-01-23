@@ -13,7 +13,7 @@ from models import GCNmf, GCN
 from train import NodeClsTrainer
 from torch_geometric.loader import DataLoader
 from utils import apply_mask, generate_mask, ABMInMemoryDataset, set_seed, logger, WandbDummy
-import torch
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', default='data/abm_sep_obs')
@@ -21,25 +21,29 @@ parser.add_argument('--type',
                     default='uniform',
                     choices=['uniform', 'bias', 'struct'],
                     help="uniform randomly missing, biased randomly missing, and structurally missing")
-parser.add_argument('--rate', default=0.1, type=float, help='missing rate')
+parser.add_argument('--rate', default=0.6, type=float, help='missing rate')
 parser.add_argument('--nhid', default=16, type=int, help='the number of hidden units')
 parser.add_argument('--dropout', default=0.2, type=float, help='dropout rate')
 parser.add_argument('--ncomp', default=5, type=int, help='the number of Gaussian components')
-parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.0005, type=float, help='learning rate')
 parser.add_argument('--wd', default=1e-2, type=float, help='weight decay')
 parser.add_argument('--epoch', default=1, type=int, help='the number of training epoch')
-parser.add_argument('--batch_size', default=512, type=int, help='Batch size for the dataloader')
+parser.add_argument('--batch_size', default=16, type=int, help='Batch size for the dataloader')
 parser.add_argument('--patience', default=100, type=int, help='patience for early stopping')
 parser.add_argument('--seed', default=30, type=int, help='Seed value for all packages')
 parser.add_argument('--verbose', action='store_true', help='verbose')
 parser.add_argument('--run_mf', action='store_true', help='If true, will run the multivariate gaussian model')
 parser.add_argument('--niter', default=1, type=int, help='Number of training iterations')
-parser.add_argument('--n_layers', default=2, type=int, help='Number of layers for the models')
+parser.add_argument('--n_layers', default=1, type=int, help='Number of layers for the models')
 parser.add_argument('--name', type=str, default=None,
                       help=('Name of the experiments. WandB will set a random'
                             ' when left undefined'))
 
 args = parser.parse_args()
+
+# Log all the arguments that were given
+args_dict = vars(args)
+logger.info("Parsed arguments: %s", args_dict)
 
 if __name__ == '__main__':
      # Set random seed
@@ -48,7 +52,7 @@ if __name__ == '__main__':
         seed_value = random.randint(0, 999)
         
     set_seed(seed_value)        
-    
+
     #Start WandB
     config_wandb = defaultdict(None)
     config_wandb['type'] = args.type
@@ -77,7 +81,7 @@ if __name__ == '__main__':
     train_data = ABMInMemoryDataset(args.data_path + '/train')
     val_data = ABMInMemoryDataset(args.data_path + '/val')
     test_data = ABMInMemoryDataset(args.data_path + '/test')
-    # args.run_mf = True
+
     if args.run_mf:
         mask_train = generate_mask(train_data.x, args.rate, args.type)
         apply_mask(train_data.x, mask_train)

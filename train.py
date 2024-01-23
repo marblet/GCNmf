@@ -92,10 +92,18 @@ class NodeClsTrainer:
         for data in self.train_loader:
             data = data.to(device)
             self.optimizer.zero_grad()                
-            output = model(data)
+            output = model(data)        
+            # if output.squeeze(1).isnan().any():
+            #     print('Nan value encountered in output')
+            #     print(output)
+            #     for name, param in model.named_parameters():
+            #         print(name, torch.isfinite(param.grad).all())
+                
             loss = self.criterion(output.squeeze(1), data.y.to(torch.float))
             loss.backward()
             self.optimizer.step()
+            
+            torch.autograd.set_detect_anomaly(True)
             total_loss += loss.item() / data.num_graphs
 
         return total_loss
@@ -105,7 +113,6 @@ class NodeClsTrainer:
         model.eval()
         total_loss = 0
         correct = 0
-        
         #Initialize arrays for calculating avg_p, auroc and recall
         all_outputs = []
         all_labels=[]
@@ -139,9 +146,21 @@ class NodeClsTrainer:
             all_outputs = np.concatenate(all_outputs)
             average_precision = average_precision_score(all_labels, all_outputs)
             auroc = roc_auc_score(all_labels, all_outputs)
-            return total_loss, acc, average_precision, auroc, recall
+            return {
+                'loss': total_loss,
+                'acc': acc,
+                'avg_prec': average_precision,
+                'auroc': auroc,
+                'recall': recall
+            }
         
-        return total_loss, acc, None, None, recall
+        return {
+            'loss': total_loss,
+            'acc': acc,
+            'avg_prec': None,
+            'auroc': None,
+            'recall': recall
+        }
         
 
     def print_verbose(self, epoch, evals):
@@ -162,50 +181,53 @@ class NodeClsTrainer:
             f"out of {torch.cuda.device_count()}"))
 
         for _ in tqdm(range(self.niter)):
+            logger.info('Resetting model parameters')
             self.reset()
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
 
             for epoch in tqdm(range(1, self.epochs + 1)):
                 train_loss = self.train()
-                train_acc, _, _, _, _ = self.evaluate(self.train_loader)
-                val_loss, val_acc, _, _, val_recall = self.evaluate(self.val_loader)
-                _, test_acc, _, _, test_recall = self.evaluate(self.test_loader)
+                logger.info(f'Evaluation after epoch {epoch}')
+                train_eval = self.evaluate(self.train_loader)
+                val_eval = self.evaluate(self.val_loader)
+                test_eval = self.evaluate(self.test_loader)
                 
                 self.runner.log({
-                    "train_loss": train_loss,
-                    "train_acc": train_acc,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc,
-                    "val_recall": val_recall,
-                    "test_acc": test_acc,
-                    "test_recall": test_recall,
+                    "train_loss": train_eval['loss'],
+                    "train_acc": train_eval['acc'],
+                    "val_loss": val_eval['loss'],
+                    "val_acc": val_eval['acc'],
+                    "val_recall": val_eval['recall'],
+                    "test_acc": test_eval['acc'],
+                    "test_recall": test_eval['recall'],
                     })
                 
                 if self.verbose:
-                    self.print_verbose(epoch, train_loss, val_loss, val_acc)
+                    self.print_verbose(epoch, train_loss, val_eval['loss'], val_eval['acc'])
 
                 if self.early_stopping:
-                    if self.stop_checker.check(val_loss, val_acc, self.model, epoch):
+                    if self.stop_checker.check(val_eval['loss'], val_eval['acc'], self.model, epoch):
                         break
 
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
 
             #Final evaluation after training for a single iteration
-            val_loss, val_acc, val_ap, val_auroc, val_recall = self.evaluate(self.val_loader, True)
-            _, test_acc, test_ap, test_auroc, test_recall = self.evaluate(self.test_loader, True)
-            val_acc_list.append(val_acc)
-            test_acc_list.append(test_acc)
+            val_eval = self.evaluate(self.val_loader, True)
+            test_eval = self.evaluate(self.test_loader, True)
+            
+            val_acc_list.append(val_eval['acc'])
+            test_acc_list.append(test_eval['acc'])
 
             self.runner.log({
-                "final_test_acc": test_acc,
-                "val_average_prec": val_ap,
-                "val_auroc": val_auroc,
-                "val_recall": val_recall,
-                "test_average_prec": test_ap,
-                "test_auroc": test_auroc,
-                "test_recall": test_recall,
+                "final_test_acc": test_eval['acc'],
+                "val_average_prec": val_eval['avg_prec'],
+                "val_auroc": val_eval['auroc'],
+                "val_recall": val_eval['recall'],
+                "test_average_prec": test_eval['avg_prec'],
+                "test_auroc": test_eval['auroc'],
+                "test_recall": test_eval['recall'],
                 })
             
         avg_test_acc = mean(test_acc_list)
@@ -233,21 +255,3 @@ class NodeClsTrainer:
 def reconstruction_loss(data, output):
     adj_recon = output['adj_recon']
     return data.norm * F.binary_cross_entropy_with_logits(adj_recon, data.adjmat, pos_weight=data.pos_weight)
-
-
-# def linkpred_loss(data, output):
-#     recon_loss = reconstruction_loss(data, output)
-#     mu, logvar = output['mu'], output['logvar']
-#     kl = - 1 / (2 * data.num_nodes) * torch.mean(torch.sum(
-#         1 + 2 * logvar - mu.pow(2) - logvar.exp().pow(2), 1))
-#     return recon_loss + kl
-
-
-# def linkpred_score(z, pos_edges, neg_edges):
-#     pos_score = torch.sigmoid(torch.sum(z[pos_edges[0]] * z[pos_edges[1]], dim=1))
-#     neg_score = torch.sigmoid(torch.sum(z[neg_edges[0]] * z[neg_edges[1]], dim=1))
-#     pred_score = torch.cat([pos_score, neg_score]).detach().cpu().numpy()
-#     true_score = np.hstack([np.ones(pos_score.size(0)), np.zeros(neg_score.size(0))])
-#     auc_score = roc_auc_score(true_score, pred_score)
-#     ap_score = average_precision_score(true_score, pred_score)
-#     return auc_score, ap_score
